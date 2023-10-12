@@ -1,8 +1,9 @@
 ﻿using CsvHelper;
 using CsvHelper.Configuration;
-using CsvHelper.Configuration.Attributes;
 using System.Globalization;
-using System.IO;
+using System.Text;
+using VkNet;
+using VkNet.Model;
 
 namespace FriendsFriend
 {
@@ -11,72 +12,41 @@ namespace FriendsFriend
         static void Main(string[] args)
         {
             string dataSetPath = @"data\IDList.csv";
-            List<string> lines = new List<string>();
             List<User> users = new List<User>();
+            var api = new VkApi();
 
-            using (StreamReader reader = new StreamReader(File.OpenRead(dataSetPath)))
+            var config = new CsvConfiguration(CultureInfo.CurrentCulture) { Delimiter = ",", Encoding = Encoding.UTF8 };
+
+            using (var fileReader = File.OpenText(dataSetPath))
+
+            using (var csvResult = new CsvReader(fileReader, config))
             {
-                string target = "Отметка времени";
-                int? targetPosition = null;
-                string line;
+                csvResult.Read();
+                csvResult.ReadHeader();
 
-                List<string> collected = new List<string>();
-                while ((line = reader.ReadLine()) != null)
-                {
-                    string[] split = line.Split(',');
-                    collected.Clear();
-
-                    for (int i = 0; i < split.Length; i++)
-                    {
-                        if (string.Equals(split[i], target, StringComparison.OrdinalIgnoreCase))
-                        {
-                            targetPosition = i;
-                            break;
-                        }
-                    }
-
-                    for (int i = 0; i < split.Length; i++)
-                    {
-                        if (targetPosition != null && i == targetPosition.Value) continue;
-
-                        if (split[i] == "Ваш ID в VK")
-                            collected.Add("Id");
-                        else
-                            collected.Add(split[i]);
-
-                    }
-
-                    lines.Add(string.Join(",", collected));
-                }
+                while (csvResult.Read())
+                    users.Add(new User(csvResult.GetField<string>("Ваш ID в VK")));
+                
             }
-            using (StreamWriter writer = new StreamWriter(dataSetPath, false))
+
+
+            api.Authorize(new ApiAuthParams
             {
-                foreach (string line in lines)
-                    writer.WriteLine(line);
+                AccessToken = File.ReadAllText(@"data\VKToken.txt")
+            });
 
-            }          
+            var res = api.Groups.Get(new GroupsGetParams());
 
-            using (var reader = new StreamReader(dataSetPath))
+            Console.WriteLine(res.TotalCount);
 
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
-            {
-                IEnumerable<User> records = csv.GetRecords<User>();
-
-                foreach (IEnumerable<User> record in records)
-                    Console.WriteLine(record);
-            }
         }
     }
 
     class User
     {
         private string _id;
-
         private string _name;
-
-        [Name("Id")]
         public string Id { get { return _id; } }
-
         public string Name { get { return _name; } }
         
         public User()
