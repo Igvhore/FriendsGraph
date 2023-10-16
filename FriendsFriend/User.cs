@@ -24,7 +24,7 @@ namespace FriendsFriend
         public User(string id)
         {
             _id = id;
-            _name = "EMPTY";\
+            _name = "EMPTY";
             friends = new List<long>();
         }
         public User(string id, string name)
