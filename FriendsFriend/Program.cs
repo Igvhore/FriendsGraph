@@ -1,52 +1,50 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Runtime.InteropServices;
-using System.Text;
-using VkNet;
-using VkNet.Enums.Filters;
+﻿using VkNet;
 using VkNet.Model;
-using VkNet.Utils;
+using System.Net.Http.Headers;
 
 namespace FriendsFriend
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             string dataSetPath = @"data\IDList.csv";
             List<User> users = new List<User>();
             VkApi api = new VkApi();
+            string token = File.ReadAllText(@"data\VKToken.txt");
+
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+            client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
 
 
-            CsvConfiguration config = new CsvConfiguration(CultureInfo.CurrentCulture) { Delimiter = ",", Encoding = Encoding.UTF8 };
-
-            using (StreamReader fileReader = File.OpenText(dataSetPath))
-
-            using (CsvReader csvResult = new CsvReader(fileReader, config))
-            {
-                csvResult.Read();
-                csvResult.ReadHeader();
-
-                while (csvResult.Read())
-                    users.Add(new User(csvResult.GetField<string>("Ваш ID в VK")));
-
-                foreach (var user in users)
-                    user.SetID(user.CorrectVkId(user.Id));
-            }
-
+            users = Reader.ReadUserInfo(users,dataSetPath);
+            
             api.Authorize(new ApiAuthParams
             {
                 AccessToken = File.ReadAllText(@"data\VKToken.txt")
             });
 
-            List<long> zeroLayerUsersIDs = api.Users.Get(users.Select(n => n.Id)).Select(t => t.Id).ToList();
+            User.NormilizeID(users, api);
 
+            users = users.Where(n => n.Id_as_number != 0).ToList();
 
-            for (int i = 0; i < zeroLayerUsersIDs.Count; i++)
-                users[i].friends = api.Friends.Get(new FriendsGetParams { UserId = zeroLayerUsersIDs[i]}).Select(n => n.Id).ToList();
+            static async Task ProcessRepositoriesAsync(HttpClient client, string token, long id)
+            {
+                string querry = await client.GetStringAsync(string.Format("https://api.vk.com/method/friends.get?user_id={0}&access_token={1}&v=5.131 HTTP/1.1", id, token));
+                Console.WriteLine(querry);
+                Console.WriteLine("________________________________________________________________________________________________________");
+            }
+
+            foreach (var user in users)
+            {
+                await ProcessRepositoriesAsync(client, token, user.Id_as_number);
+                Thread.Sleep(500);
+            }
+
+           
         }
-
     }
 }
