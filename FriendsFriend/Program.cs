@@ -1,139 +1,88 @@
-﻿using CsvHelper;
-using CsvHelper.Configuration;
-using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using VkNet;
-using VkNet.Enums.Filters;
+﻿using VkNet;
 using VkNet.Model;
-using VkNet.Utils;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
+using System.Net.Http.Headers;
 
 namespace FriendsFriend
 {
     internal class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             string dataSetPath = @"data\IDList.csv";
             List<User> users = new List<User>();
-            List<User> usersFirstLayer = new List<User>();
-            List<User> usersSecondLayer = new List<User>();
             VkApi api = new VkApi();
+            string token = File.ReadAllText(@"data\VKToken.txt");
+
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
+            client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
 
 
-            CsvConfiguration config = new CsvConfiguration(CultureInfo.CurrentCulture) { Delimiter = ",", Encoding = Encoding.UTF8 };
-
-            using (StreamReader fileReader = File.OpenText(dataSetPath))
-
-            using (CsvReader csvResult = new CsvReader(fileReader, config))
-            {
-                csvResult.Read();
-                csvResult.ReadHeader();
-
-                while (csvResult.Read())
-                    users.Add(new User(csvResult.GetField<string>("Ваш ID в VK")));
-
-                foreach (var user in users)
-                    user.SetID(user.CorrectVkId(user.Id));
-            }
+            users = Reader.ReadUserInfo(users,dataSetPath);
             
             api.Authorize(new ApiAuthParams
             {
                 AccessToken = File.ReadAllText(@"data\VKToken.txt")
             });
 
-            List<long> zeroLayerUsersIDs = api.Users.Get(users.Select(n => n.Id)).Select(t => t.Id).ToList();
-            File.AppendAllText(@"C:\Users\Илья\Desktop\0-1слой.txt", "Первый слой:");
-            File.AppendAllLines(@"C:\Users\Илья\Desktop\0-1слой.txt", zeroLayerUsersIDs.Select(n => Convert.ToString(n)));
-            File.AppendAllText(@"C:\Users\Илья\Desktop\0-1слой.txt", "Первый слой подробнее:");
-            int i_1 = 0;
-            foreach (var currentUser in users)
+            User.NormilizeID(users, api);
+
+            users = users.Where(n => n.Id_as_number != 0).ToList();
+
+            static async Task<List<User>> ProcessRepositoriesAsync(HttpClient client, string token, long id)
             {
-                Cicle_1:
-                try
+                string querry = await client.GetStringAsync(string.Format("https://api.vk.com/method/friends.get?user_id={0}&access_token={1}&v=5.131 HTTP/1.1", id, token));
+                querry = querry.Remove(0, 34);
+                querry = querry.Replace("]}}", "");
+                List<User> friends = new List<User>();
+                string[] s = querry.Split(',');
+                foreach (string c in s)
                 {
-                    currentUser.friends = api.Friends.Get(new FriendsGetParams { UserId = zeroLayerUsersIDs[i_1] }).Select(n => n.Id).ToList();
-                    Console.WriteLine("Чел с 0 уровня " + currentUser.Id + " дружит с " + currentUser.friends.Count);
-                    Thread.Sleep(1000);
-                    File.AppendAllText(@"C:\Users\Илья\Desktop\0-1слой.txt", zeroLayerUsersIDs[i_1].ToString());
-                   
-                    foreach (long friend in currentUser.friends)
+                    try
                     {
-                   
-                        usersFirstLayer.Add(new User(friend.ToString()));
-                        //File.AppendAllText(@"C:\Users\Илья\Desktop\0-1слой.txt", "Друзья:");
-                        //File.AppendAllLines(@"C:\Users\Илья\Desktop\0-1слой.txt", currentUser.friends.Select(n => Convert.ToString(n)));
+                        friends.Add(new User(Int64.Parse(c)));
                     }
-                    i_1++;
+                    catch { }
                 }
-                catch
-                {
-                    i_1++;
-                    goto Cicle_1;
-                }
-                //api.Users.Get(new long[] { friend }).FirstOrDefault().FirstName + " " + api.Users.Get(new long[] { friend }).FirstOrDefault().LastName
+                return friends;
             }
 
-            int i_2 = 0;
-            
-            foreach (var currentUser in usersFirstLayer)
+            foreach (var user in users)
             {
-                Cicle_2:
-                try
-                {
-                    currentUser.friends = api.Friends.Get(new FriendsGetParams { UserId = Convert.ToInt64(usersFirstLayer[i_2].Id) }).Select(n => n.Id).ToList();
-                    Console.WriteLine("Чел с 1го слоя " + currentUser.Id + " дружит с " + currentUser.friends.Count);
-                    Thread.Sleep(2500);
-                    foreach (long friend in currentUser.friends)
-                    {
-                        usersSecondLayer.Add(new User(friend.ToString()));
-                    }
-                    i_2++;
-                }
-                catch
-                {
-                    i_2++;
-                    goto Cicle_2;
-                }  
+                user.friends = await ProcessRepositoriesAsync(client, token, user.Id_as_number);
+                Thread.Sleep(500);
             }
 
+            users = users.Where(n => n.friends.Count != 0).ToList();
 
+            foreach (var user in users)
+            {
+                foreach (var friend in user.friends)
+                {
+                    friend.friends = await ProcessRepositoriesAsync(client, token, friend.Id_as_number);
+                    Thread.Sleep(500);
+                }
+            }
+
+            foreach (var user in users)
+            {
+                foreach (var friend in user.friends)
+                {
+                    friend.friends = await ProcessRepositoriesAsync(client, token, friend.Id_as_number);
+                    Thread.Sleep(500);
+                }
+            }
+
+            foreach (var user in users)
+            {
+                foreach(var friend in user.friends)
+                {
+                    foreach(var f in friend.friends)
+                        Console.WriteLine(f.Id_as_number);
+                }
+            }
         }
-
-        class User
-        {
-            private string _id;
-            private string _name;
-            public List<long> friends = new List<long>();
-
-            public string Id { get { return _id; } }
-            public string Name { get { return _name; } }
-
-            public User()
-            {
-                _id = "NONE";
-                _name = "EMPTY";
-            }
-            public User(string id)
-            {
-                _id = id;
-                _name = "EMPTY";
-            }
-            public User(string id, string name)
-            {
-                _id = id;
-                _name = name;
-            }
-
-            public void SetName(string NewName) => _name = NewName;
-            public void SetID(string NewID) => _id = NewID;
-            public string CorrectVkId(string id) => id.Trim('@').Replace("https://vk.com/", "");
-
-        }
-
     }
 }
