@@ -12,17 +12,22 @@ namespace FriendsFriend
             List<User> users = new List<User>();
             VkApi api = new VkApi();
             string token = File.ReadAllText(@"data\VKToken.txt");
+
+
             using HttpClient client = new();
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
             client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
+
             users = Reader.ReadUserInfo(users,dataSetPath);
             Console.WriteLine("Файл прочитан");
+
             api.Authorize(new ApiAuthParams
             {
                 AccessToken = File.ReadAllText(@"data\VKToken.txt")
             });
+
             Console.WriteLine("Пользователь авторизован");
             User.NormilizeID(users, api);
             Console.WriteLine("ID нормализованы");
@@ -75,6 +80,7 @@ namespace FriendsFriend
                     Thread.Sleep(45);
                 }
             }
+
         }
     }
 }
