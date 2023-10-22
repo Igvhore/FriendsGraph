@@ -60,14 +60,16 @@ namespace FriendsFriend
                 try
                 {
                     user.Id_as_number = api.Users.Get(new List<string>() { user.Id }).ToList().First().Id;
+                    Console.WriteLine("Пользователь нормализован");
                 }
                 catch (InvalidOperationException e)
                 {
+                    Console.WriteLine(e.Message);
                     user.Id_as_number = 0;
                 }
                 finally
                 {
-                    Thread.Sleep(1000);
+                    Thread.Sleep(400);
                 }
             }
         }      
