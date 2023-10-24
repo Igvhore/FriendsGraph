@@ -20,7 +20,7 @@ namespace FriendsFriend
             new MediaTypeWithQualityHeaderValue("application/vnd.github.v3+json"));
             client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
 
-            users = Reader.ReadUserInfo(users,dataSetPath);
+            users = Reader.ReadUserInfo(users, dataSetPath);
             Console.WriteLine("Файл прочитан");
 
             api.Authorize(new ApiAuthParams
@@ -40,9 +40,9 @@ namespace FriendsFriend
                 querry = querry.Replace("]}}", "");
                 List<User> friends = new List<User>();
                 string[] s = querry.Split(',');
-                File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", "Пользователь: ");
-                File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", id.ToString());
-                File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", "\nДружит с:\n");
+                //File.AppendAllText(@"data\AllLayers.txt", "Пользователь: ");
+                //File.AppendAllText(@"data\AllLayers.txt", id.ToString());
+                //File.AppendAllText(@"data\AllLayers.txt", "\nДружит с:\n");
                 foreach (string c in s)
                 {
                     try
@@ -57,9 +57,14 @@ namespace FriendsFriend
             foreach (var user in users)
             {
                 user.friends = await GetFriendsAsync(client, token, user.Id_as_number);
-                File.AppendAllLines(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", user.friends.Select(n => Convert.ToString(n.Id_as_number)));
                 Thread.Sleep(45);
             }
+
+            /*foreach (User user in users)
+            {
+                foreach (var friend in user.friends)
+                    File.AppendAllText(@"data\AllLayers.txt", $"{user.Id_as_number}:{friend.Id_as_number}\n");
+            }*/
 
             users = users.Where(n => n.friends.Count != 0).ToList();
             foreach (var user in users)
@@ -67,20 +72,30 @@ namespace FriendsFriend
                 foreach (var friend in user.friends)
                 {
                     friend.friends = await GetFriendsAsync(client, token, friend.Id_as_number);
-                    File.AppendAllLines(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", friend.friends.Select(n => Convert.ToString(n.Id_as_number)));
-                    Thread.Sleep(45);
-                }
-            }
-            foreach (var user in users)
-            {
-                foreach (var friend in user.friends)
-                {
-                    friend.friends = await GetFriendsAsync(client, token, friend.Id_as_number);
-                    File.AppendAllLines(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\AllLayers.txt", friend.friends.Select(n => Convert.ToString(n.Id_as_number)));
                     Thread.Sleep(45);
                 }
             }
 
+            /* foreach (User user in users)
+             {
+                 foreach (var friend in user.friends)
+                 {
+                     foreach (var f in friend.friends)
+                         File.AppendAllText(@"data\AllLayers.txt", $"{friend.Id_as_number}:{f.Id_as_number}\n");
+                 }
+             }*/
+
+            foreach (User user in users)
+            {
+                File.AppendAllText(@"data\Vertex.txt", $"{user.Id_as_number.ToString()}\n");
+                foreach (var friend in user.friends)
+                {
+                    File.AppendAllText(@"data\Vertex.txt", $"{friend.Id_as_number.ToString()}\n");
+
+                    foreach (var f in friend.friends)
+                        File.AppendAllText(@"data\Vertex.txt", $"{f.Id_as_number.ToString()}\n");
+                }
+            }
         }
     }
 }

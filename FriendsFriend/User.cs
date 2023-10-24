@@ -27,7 +27,6 @@ namespace FriendsFriend
             _name = "EMPTY";
             friends = new List<User>();
         }
-
         public User(long id)
         {
             _id = "";
@@ -35,7 +34,6 @@ namespace FriendsFriend
             _name = "EMPTY";
             friends = new List<User>();
         }
-
         public User(string id, string name)
         {
             _id = id;
@@ -62,9 +60,6 @@ namespace FriendsFriend
                 try
                 {
                     user.Id_as_number = api.Users.Get(new List<string>() { user.Id }).ToList().First().Id;
-
-   
-
                 }
                 catch (InvalidOperationException e)
                 {
@@ -72,9 +67,7 @@ namespace FriendsFriend
                 }
                 finally
                 {
-
                     Thread.Sleep(400);
-
                 }
             }
         }      
