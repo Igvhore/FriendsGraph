@@ -20,7 +20,6 @@ namespace FriendsFriend
                     users.Add(new User(csvResult.GetField<string>("Ваш ID в VK")));
 
                 foreach (var user in users)
-
                     user.SetID(user.CorrectVkId(user.Id));               
             }           
             return users;

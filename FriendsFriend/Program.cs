@@ -1,7 +1,6 @@
 ﻿using VkNet;
 using VkNet.Model;
 using System.Net.Http.Headers;
-using System.Linq;
 
 namespace FriendsFriend
 {
@@ -14,7 +13,6 @@ namespace FriendsFriend
             VkApi api = new VkApi();
             string token = File.ReadAllText(@"data\VKToken.txt");
 
-
             using HttpClient client = new();
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
@@ -26,19 +24,15 @@ namespace FriendsFriend
 
             api.Authorize(new ApiAuthParams
             {
-                AccessToken = File.ReadAllText(@"data\VKToken.txt")
+                AccessToken = token
             });
 
-            Console.WriteLine("Пользователь авторизован");
-            User.NormilizeID(users, api);
-            Console.WriteLine("ID нормализованы");
-            users = users.Where(n => n.Id_as_number != 0).ToList();
-            Console.WriteLine("Список создан");
             static async Task<List<User>> GetFriendsAsync(HttpClient client, string token, long id)
             {
-                string querry = await client.GetStringAsync(string.Format("https://api.vk.com/method/friends.get?user_id={0}&access_token={1}&v=5.131 HTTP/1.1", id, token));
+                string querry = await client.GetStringAsync(string.Format($"https://api.vk.com/method/friends.get?user_id={id}&access_token={token}&v=5.131 HTTP/1.1"));
                 querry = querry.Remove(0, 34);
                 querry = querry.Replace("]}}", "");
+                Console.WriteLine($"{querry}");
                 List<User> friends = new List<User>();
                 string[] s = querry.Split(',');
                 foreach (string c in s)
@@ -52,93 +46,87 @@ namespace FriendsFriend
                 return friends;
             }
 
+            Console.WriteLine("Пользователь авторизован");
+            User.NormilizeID(users, api);
+            Console.WriteLine("ID нормализованы");
+            users = users.Where(n => n.Id_as_number != 0).ToList();
+            Console.WriteLine("Список создан");        
+
             int i = 0;
 
-            foreach (var user in users)
+            foreach (User user in users)
             {
                 user.friends = await GetFriendsAsync(client, token, user.Id_as_number);
-                Thread.Sleep(45);
-                foreach (var friend in user.friends)
+                Thread.Sleep(300);
+                foreach (User friend in user.friends)
                 {
-                    File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\TwoLayers.txt", $"{user.Id_as_number}:{friend.Id_as_number}\n");
+                    File.AppendAllText(@"data\TwoLayers.txt", $"{user.Id_as_number}:{friend.Id_as_number}\n");
                     i++;
                 }
                     
             }
-            Console.WriteLine("Было записано строк на 0-1 уровне: ");
-            Console.Write(i);
+            Console.Write("Было записано строк на 0-1 уровне: ");
+            Console.Write($"{i}\n");
+            Console.Write("Было юзеров 0-1: ");
+            Console.Write($"{users.Count}\n");
 
-            Console.WriteLine("Было юзеров 0-1: ");
-            Console.Write(users.Count);
             users = users.Where(n => n.friends.Count != 0).ToList();
-            Console.WriteLine("Стало юзеров 0-1: ");
-            Console.Write(users.Count);
+
+            Console.Write("Стало юзеров 0-1: ");
+            Console.Write($"{users.Count}\n");
 
             List<long> usersOfSecondLayer = new List<long>();
+
             i= 0;
-            foreach (var user in users)
+            foreach (User user in users)
             {
-                foreach (var friend in user.friends)
+                foreach (User friend in user.friends)
                 {
                     friend.friends = await GetFriendsAsync(client, token, friend.Id_as_number);
-                    Thread.Sleep(45);
-                    foreach (var f in friend.friends)
+                    Thread.Sleep(300);
+                    foreach (User f in friend.friends)
                     {
                         if (friend.friends.Count != 0)
                         {
-                            File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\TwoLayers.txt", $"{friend.Id_as_number}:{f.Id_as_number}\n");
+                            File.AppendAllText(@"data\TwoLayers.txt", $"{friend.Id_as_number}:{f.Id_as_number}\n");
                             usersOfSecondLayer.Add(f.Id_as_number);
                             i++;
                         }
-                        
                     }
                         
                 }
             }
             Console.WriteLine("Было записано строк на 1-2 уровне: ");
-            Console.Write(i);
-
-            //Console.WriteLine("Было юзеров 1-2: ");
-            //Console.Write(users[0].);
-            //users = users.Where(n => n.friends.Count != 0).ToList();
-            //Console.WriteLine("Стало юзеров 1-2: ");
-            //Console.Write(users.Count);
-
+            Console.Write($"{i}\n");
 
             i = 0;
             int a = 0;
-            foreach (var user in users)
+            foreach (User user in users)
             {
-                foreach (var friend in user.friends)
+                foreach (User friend in user.friends)
                 {
                     a++;
-                    foreach (var f in friend.friends)
+                    foreach (User f in friend.friends)
                     {
                         
                         f.friends = await GetFriendsAsync(client, token, f.Id_as_number);
-                        Thread.Sleep(45);
-                            foreach(var fr3 in f.friends)
+                        Thread.Sleep(300);
+                        foreach(User fr3 in f.friends)
+                        {
+                            if ((f.friends.Count != 0) && (usersOfSecondLayer.Contains(fr3.Id_as_number)))
                             {
-                                if ((f.friends.Count != 0) & usersOfSecondLayer.Contains(fr3.Id_as_number))
-                                {
-                                  File.AppendAllText(@"D:\VisualStudio\Projects\FriendsVK\FriendsGraph\TwoLayers.txt", $"{f.Id_as_number}:{fr3.Id_as_number}\n");
-                                  i++;
-                                }
-                                
+                                File.AppendAllText(@"data\TwoLayers.txt", $"{f.Id_as_number}:{fr3.Id_as_number}\n");
+                                i++;
                             }
+                                
+                        }
                     }
-                    Console.WriteLine($"Был записан 3 слой для {0} из 22", a);
+                    Console.WriteLine($"Был записан 3 слой для {a} из {users.Count}");
                 }
             }
 
-            Console.WriteLine("Было записано строк на 2-3 уровне: ");
+            Console.Write("Было записано строк на 2-3 уровне: ");
             Console.Write(i);
-
-            //Console.WriteLine("Было юзеров: ");
-            //Console.Write(users);
-            //users = users.Where(n => n.friends.Count != 0).ToList();
-            //Console.WriteLine("Стало юзеров: ");
-            //Console.Write(users);
         }
     }
 }
