@@ -57,7 +57,7 @@ namespace FriendsFriend
             foreach (User user in users)
             {
                 user.friends = await GetFriendsAsync(client, token, user.Id_as_number);
-                Thread.Sleep(300);
+                Thread.Sleep(45);
                 foreach (User friend in user.friends)
                 {
                     File.AppendAllText(@"data\TwoLayers.txt", $"{user.Id_as_number}:{friend.Id_as_number}\n");
@@ -83,7 +83,7 @@ namespace FriendsFriend
                 foreach (User friend in user.friends)
                 {
                     friend.friends = await GetFriendsAsync(client, token, friend.Id_as_number);
-                    Thread.Sleep(300);
+                    Thread.Sleep(45);
                     foreach (User f in friend.friends)
                     {
                         if (friend.friends.Count != 0)
@@ -110,7 +110,7 @@ namespace FriendsFriend
                     {
                         
                         f.friends = await GetFriendsAsync(client, token, f.Id_as_number);
-                        Thread.Sleep(300);
+                        Thread.Sleep(45);
                         foreach(User fr3 in f.friends)
                         {
                             if ((f.friends.Count != 0) && (usersOfSecondLayer.Contains(fr3.Id_as_number)))
